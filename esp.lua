@@ -1,109 +1,142 @@
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
-local ESPEnabled = true
+local TweenService = game:GetService("TweenService")
+local ESPEnabled = false
 local ESPObjects = {}
 
-local function createESP(model, displayName)
+local function getPlayerRole(player)
+	if player:FindFirstChild("Role") then
+		return player.Role.Value
+	end
+	return "Netral"
+end
+
+local function getColor(role)
+	if role == "Seeker" then
+		return Color3.fromRGB(255,0,0)
+	elseif role == "Hider" then
+		return Color3.fromRGB(0,255,0)
+	else
+		return Color3.fromRGB(0,0,255)
+	end
+end
+
+local function createESP(model, player)
 	if ESPObjects[model] then return end
 	if not model:FindFirstChild("HumanoidRootPart") then return end
 
+	local role = getPlayerRole(player)
+	local color = getColor(role)
+
 	local highlight = Instance.new("Highlight")
 	highlight.Adornee = model
-	highlight.FillColor = Color3.fromRGB(0,255,0)
-	highlight.OutlineColor = Color3.fromRGB(0,255,0)
+	highlight.FillColor = color
+	highlight.OutlineColor = color
 	highlight.FillTransparency = 0.6
 	highlight.OutlineTransparency = 0
 	highlight.Enabled = ESPEnabled
 	highlight.Parent = model
 
 	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.new(0,130,0,40)
+	billboard.Size = UDim2.new(0,120,0,30)
 	billboard.StudsOffset = Vector3.new(0,3,0)
 	billboard.AlwaysOnTop = true
 	billboard.Adornee = model:FindFirstChild("Head") or model:FindFirstChild("HumanoidRootPart")
 	billboard.Enabled = ESPEnabled
 	billboard.Parent = model
 
-	local text = Instance.new("TextLabel")
-	text.Size = UDim2.new(1,0,1,0)
-	text.BackgroundTransparency = 1
-	text.TextScaled = true
-	text.TextStrokeTransparency = 0
-	text.TextColor3 = Color3.fromRGB(255,255,255)
-	text.Text = displayName
-	text.Parent = billboard
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1,0,1,0)
+	label.BackgroundTransparency = 1
+	label.TextScaled = true
+	label.TextStrokeTransparency = 0
+	label.TextColor3 = color
+	label.Text = player.Name
+	label.Parent = billboard
 
-	ESPObjects[model] = {highlight, billboard}
+	ESPObjects[model] = {highlight, billboard, player}
+end
+
+local function updateESP()
+	for model,data in pairs(ESPObjects) do
+		if data[1] and data[2] and data[3] then
+			local role = getPlayerRole(data[3])
+			local color = getColor(role)
+			data[1].FillColor = color
+			data[1].OutlineColor = color
+			data[2].Enabled = ESPEnabled
+			data[1].Enabled = ESPEnabled
+			data[2].TextLabel.TextColor3 = color
+		end
+	end
 end
 
 local function toggleESP()
 	ESPEnabled = not ESPEnabled
-	for _,v in pairs(ESPObjects) do
-		v[1].Enabled = ESPEnabled
-		v[2].Enabled = ESPEnabled
-	end
+	updateESP()
 end
 
 local function setupPlayer(player)
 	if player.Character then
-		createESP(player.Character, player.Name)
+		createESP(player.Character, player)
 	end
 	player.CharacterAdded:Connect(function(char)
-		task.wait(1)
-		createESP(char, player.Name)
+		task.wait(0.5)
+		createESP(char, player)
 	end)
 end
 
 for _,p in pairs(Players:GetPlayers()) do
-	setupPlayer(p)
-end
-
-Players.PlayerAdded:Connect(setupPlayer)
-
-for _,m in pairs(workspace:GetChildren()) do
-	if m:IsA("Model") and m:FindFirstChild("Humanoid") and not Players:GetPlayerFromCharacter(m) then
-		createESP(m, m.Name)
+	if p ~= LocalPlayer then
+		setupPlayer(p)
 	end
 end
 
-workspace.ChildAdded:Connect(function(m)
-	if m:IsA("Model") and m:FindFirstChild("Humanoid") then
-		task.wait(1)
-		if not Players:GetPlayerFromCharacter(m) then
-			createESP(m, m.Name)
-		end
+Players.PlayerAdded:Connect(function(p)
+	if p ~= LocalPlayer then
+		setupPlayer(p)
+	end
+end)
+
+workspace.ChildAdded:Connect(function(obj)
+	if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and not Players:GetPlayerFromCharacter(obj) then
+		local fakePlayer = {Name=obj.Name, Role=Instance.new("StringValue")}
+		fakePlayer.Role.Value = "Netral"
+		createESP(obj,fakePlayer)
 	end
 end)
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
 
 local button = Instance.new("TextButton")
-button.Size = UDim2.new(0,90,0,42)
-button.Position = UDim2.new(1,-110,1,-70)
-button.Text = "ESP ON"
-button.TextScaled = true
-button.BackgroundColor3 = Color3.fromRGB(0,180,0)
-button.BackgroundTransparency = 0.15
+button.Size = UDim2.new(0,80,0,35)
+button.Position = UDim2.new(1,-90,1,-120)
+button.Text = "ESP"
+button.BackgroundColor3 = Color3.fromRGB(0,170,0)
 button.TextColor3 = Color3.fromRGB(255,255,255)
+button.TextScaled = true
 button.Parent = screenGui
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0,12)
+corner.CornerRadius = UDim.new(0,10)
 corner.Parent = button
 
 button.MouseButton1Click:Connect(function()
 	toggleESP()
-	local goal = {}
 	if ESPEnabled then
-		button.Text = "ESP ON"
-		goal.BackgroundColor3 = Color3.fromRGB(0,180,0)
+		button.BackgroundColor3 = Color3.fromRGB(0,170,0)
 	else
-		button.Text = "ESP OFF"
-		goal.BackgroundColor3 = Color3.fromRGB(180,0,0)
+		button.BackgroundColor3 = Color3.fromRGB(170,0,0)
 	end
-	TweenService:Create(button, TweenInfo.new(0.2), goal):Play()
+end)
+
+spawn(function()
+	while true do
+		task.wait(0.5)
+		if ESPEnabled then
+			updateESP()
+		end
+	end
 end)
