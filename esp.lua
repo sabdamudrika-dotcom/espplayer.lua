@@ -1,15 +1,9 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-
 local LocalPlayer = Players.LocalPlayer
-local DEVELOPER_USERID = LocalPlayer.UserId
 local ESPEnabled = true
 local ESPObjects = {}
-
-if not RunService:IsStudio() and LocalPlayer.UserId ~= DEVELOPER_USERID then
-	return
-end
 
 local function createESP(model, displayName)
 	if ESPObjects[model] then return end
@@ -53,7 +47,6 @@ local function toggleESP()
 end
 
 local function setupPlayer(player)
-	if player == LocalPlayer then return end
 	if player.Character then
 		createESP(player.Character, player.Name)
 	end
